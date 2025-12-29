@@ -1,0 +1,778 @@
+local M = {}
+
+M.isSafeToPickPlace = true
+
+function M.init(Rayfield, beastHubNotify, Window, myFunctions, beastHubIcon, equipItemByName, equipItemByNameV2, getMyFarm, getFarmSpawnCFrame, getAllPetNames, sendDiscordWebhook)
+    local Custom = Window:CreateTab("Custom", "bot")
+    
+    -- Custom Loadouts
+    Custom:CreateSection("Custom Loadouts")
+
+    Custom:CreateDivider()
+    M.customLoadout1 = Custom:CreateParagraph({Title = "Custom 1:", Content = "None"})
+    Custom:CreateButton({
+        Name = "Set current Team as Custom 1",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_1.txt"
+            if not isfolder(saveFolder) then
+                makefolder(saveFolder)
+            end
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    return nil
+                end
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    return nil
+                end
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+                return petIdsList
+            end
+            local function getPetNameUsingId(uid)
+                local playerData = getPlayerData()
+                if playerData.PetsData.PetInventory.Data then
+                    local data = playerData.PetsData.PetInventory.Data
+                    for id, petData in pairs(data) do
+                        if id == uid then
+                            return petData.PetType.." > "..petData.PetData.Name.." > "..string.format("%.2f", petData.PetData.BaseWeight * 1.1).."kg"
+                        end
+                    end
+                end
+            end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    local petName = getPetNameUsingId(id)
+                    petsString = petsString..petName..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout1:Set({Title = "Custom 1:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 1!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Custom:CreateButton({
+        Name = "Load Custom 1",
+        Callback = function()
+            local function getPetEquipLocation()
+                local ok, result = pcall(function()
+                    local spawnCFrame = getFarmSpawnCFrame()
+                    if typeof(spawnCFrame) ~= "CFrame" then
+                        return nil
+                    end
+                    return spawnCFrame * CFrame.new(0, 0, -5)
+                end)
+                if ok then
+                    return result
+                else
+                    warn("EquipLocationError " .. tostring(result))
+                    return nil
+                end
+            end
+
+            local function parseFromFile()
+                local ids = {}
+                local ok, content = pcall(function()
+                    return readfile("BeastHub/custom_1.txt")
+                end)
+                if not ok then
+                    warn("Failed to read custom_1.txt")
+                    return ids
+                end
+                for line in string.gmatch(content, "([^\n]+)") do
+                    local id = string.match(line, "({[%w%-]+})") -- keep the {} with the ID
+                    if id then
+                        -- print("id loaded")
+                        -- print(id or "")
+                        table.insert(ids, id)
+                    end
+                end
+                return ids
+            end
+
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    warn("PetsData missing")
+                    return nil
+                end
+
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    warn("EquippedPets missing or invalid")
+                    return nil
+                end
+
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+
+                return petIdsList
+            end
+            local equipped = equippedPets()
+            if #equipped > 0 then
+                for _,id in ipairs(equipped) do
+                    local args = {
+                        [1] = "UnequipPet";
+                        [2] = id;
+                    }
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    task.wait()
+                end
+            end
+
+            local location = getPetEquipLocation()
+            local petIds = parseFromFile()
+
+            if #petIds == 0 then
+                beastHubNotify("Custom 1 is empty", "", 3)
+                return
+            end
+
+            for _, id in ipairs(petIds) do
+                local args = {
+                    [1] = "EquipPet";
+                    [2] = id;
+                    [3] = location;
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                task.wait()
+            end
+
+            beastHubNotify("Loaded Custom 1", "", 3)
+        end
+    })
+
+
+    Custom:CreateDivider()
+    M.customLoadout2 = Custom:CreateParagraph({Title = "Custom 2:", Content = "None"})
+    Custom:CreateButton({
+        Name = "Set current Team as Custom 2",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_2.txt"
+            if not isfolder(saveFolder) then
+                makefolder(saveFolder)
+            end
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    return nil
+                end
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    return nil
+                end
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+                return petIdsList
+            end
+            local function getPetNameUsingId(uid)
+                local playerData = getPlayerData()
+                if playerData.PetsData.PetInventory.Data then
+                    local data = playerData.PetsData.PetInventory.Data
+                    for id, petData in pairs(data) do
+                        if id == uid then
+                            return petData.PetType.." > "..petData.PetData.Name.." > "..string.format("%.2f", petData.PetData.BaseWeight * 1.1).."kg"
+                        end
+                    end
+                end
+            end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    local petName = getPetNameUsingId(id)
+                    petsString = petsString..petName..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout2:Set({Title = "Custom 2:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 2!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Custom:CreateButton({
+        Name = "Load Custom 2",
+        Callback = function()
+            local function getPetEquipLocation()
+                local ok, result = pcall(function()
+                    local spawnCFrame = getFarmSpawnCFrame()
+                    if typeof(spawnCFrame) ~= "CFrame" then
+                        return nil
+                    end
+                    return spawnCFrame * CFrame.new(0, 0, -5)
+                end)
+                if ok then
+                    return result
+                else
+                    warn("EquipLocationError " .. tostring(result))
+                    return nil
+                end
+            end
+
+            local function parseFromFile()
+                local ids = {}
+                local ok, content = pcall(function()
+                    return readfile("BeastHub/custom_2.txt")
+                end)
+                if not ok then
+                    warn("Failed to read custom_2.txt")
+                    return ids
+                end
+                for line in string.gmatch(content, "([^\n]+)") do
+                    local id = string.match(line, "({[%w%-]+})")
+                    if id then
+                        print("id loaded")
+                        print(id or "")
+                        table.insert(ids, id)
+                    end
+                end
+                return ids
+            end
+            
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    warn("PetsData missing")
+                    return nil
+                end
+
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    warn("EquippedPets missing or invalid")
+                    return nil
+                end
+
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+
+                return petIdsList
+            end
+            local equipped = equippedPets()
+            if #equipped > 0 then
+                for _,id in ipairs(equipped) do
+                    local args = {
+                        [1] = "UnequipPet";
+                        [2] = id;
+                    }
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    task.wait()
+                end
+            end
+
+            local location = getPetEquipLocation()
+            local petIds = parseFromFile()
+
+            if #petIds == 0 then
+                beastHubNotify("Custom 2 is empty", "", 3)
+                return
+            end
+
+            for _, id in ipairs(petIds) do
+                local args = {
+                    [1] = "EquipPet";
+                    [2] = id;
+                    [3] = location;
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                task.wait()
+            end
+
+            beastHubNotify("Loaded Custom 2", "", 3)
+        end
+    })
+    Custom:CreateDivider()
+
+
+    M.customLoadout3 = Custom:CreateParagraph({Title = "Custom 3:", Content = "None"})
+    Custom:CreateButton({
+        Name = "Set current Team as Custom 3",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_3.txt"
+            if not isfolder(saveFolder) then
+                makefolder(saveFolder)
+            end
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    return nil
+                end
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    return nil
+                end
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+                return petIdsList
+            end
+            local function getPetNameUsingId(uid)
+                local playerData = getPlayerData()
+                if playerData.PetsData.PetInventory.Data then
+                    local data = playerData.PetsData.PetInventory.Data
+                    for id, petData in pairs(data) do
+                        if id == uid then
+                            return petData.PetType.." > "..petData.PetData.Name.." > "..string.format("%.2f", petData.PetData.BaseWeight * 1.1).."kg"
+                        end
+                    end
+                end
+            end
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    local petName = getPetNameUsingId(id)
+                    petsString = petsString..petName..">"..id.."|\n"
+                end
+            end
+            if equipped and #equipped > 0 then
+                M.customLoadout3:Set({Title = "Custom 3:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 3!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+    Custom:CreateButton({
+        Name = "Load Custom 3",
+        Callback = function()
+            local function getPetEquipLocation()
+                local ok, result = pcall(function()
+                    local spawnCFrame = getFarmSpawnCFrame()
+                    if typeof(spawnCFrame) ~= "CFrame" then
+                        return nil
+                    end
+                    return spawnCFrame * CFrame.new(0, 0, -5)
+                end)
+                if ok then
+                    return result
+                else
+                    warn("EquipLocationError " .. tostring(result))
+                    return nil
+                end
+            end
+
+            local function parseFromFile()
+                local ids = {}
+                local ok, content = pcall(function()
+                    return readfile("BeastHub/custom_3.txt")
+                end)
+                if not ok then
+                    warn("Failed to read custom_3.txt")
+                    return ids
+                end
+                for line in string.gmatch(content, "([^\n]+)") do
+                    local id = string.match(line, "({[%w%-]+})")
+                    if id then
+                        print("id loaded")
+                        print(id or "")
+                        table.insert(ids, id)
+                    end
+                end
+                return ids
+            end
+
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    warn("PetsData missing")
+                    return nil
+                end
+
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    warn("EquippedPets missing or invalid")
+                    return nil
+                end
+
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+
+                return petIdsList
+            end
+            local equipped = equippedPets()
+            if #equipped > 0 then
+                for _,id in ipairs(equipped) do
+                    local args = {
+                        [1] = "UnequipPet";
+                        [2] = id;
+                    }
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    task.wait()
+                end
+            end
+
+            local location = getPetEquipLocation()
+            local petIds = parseFromFile()
+
+            if #petIds == 0 then
+                beastHubNotify("Custom 3 is empty", "", 3)
+                return
+            end
+
+            for _, id in ipairs(petIds) do
+                local args = {
+                    [1] = "EquipPet";
+                    [2] = id;
+                    [3] = location;
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                task.wait()
+            end
+
+            beastHubNotify("Loaded Custom 3", "", 3)
+        end
+    })
+    Custom:CreateDivider()
+
+    M.customLoadout4 = Custom:CreateParagraph({Title = "Custom 4:", Content = "None"})
+    Custom:CreateButton({
+        Name = "Set current Team as Custom 4",
+        Callback = function()
+            local saveFolder = "BeastHub"
+            local saveFile = saveFolder.."/custom_4.txt"
+            if not isfolder(saveFolder) then
+                makefolder(saveFolder)
+            end
+
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    return nil
+                end
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    return nil
+                end
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+                return petIdsList
+            end
+
+            local function getPetNameUsingId(uid)
+                local playerData = getPlayerData()
+                if playerData.PetsData.PetInventory.Data then
+                    local data = playerData.PetsData.PetInventory.Data
+                    for id, petData in pairs(data) do
+                        if id == uid then
+                            return petData.PetType.." > "..petData.PetData.Name.." > "..string.format("%.2f", petData.PetData.BaseWeight * 1.1).."kg"
+                        end
+                    end
+                end
+            end
+
+            local equipped = equippedPets()
+            local petsString = ""
+            if equipped then
+                for _, id in ipairs(equipped) do
+                    local petName = getPetNameUsingId(id)
+                    petsString = petsString..petName..">"..id.."|\n"
+                end
+            end
+
+            if equipped and #equipped > 0 then
+                M.customLoadout4:Set({Title = "Custom 4:", Content = petsString})
+                writefile(saveFile, petsString)
+                beastHubNotify("Saved Custom 4!", "", 3)
+            else
+                beastHubNotify("No pets equipped", "", 3)
+            end
+        end
+    })
+
+    Custom:CreateButton({
+        Name = "Load Custom 4",
+        Callback = function()
+            local function getPetEquipLocation()
+                local ok, result = pcall(function()
+                    local spawnCFrame = getFarmSpawnCFrame()
+                    if typeof(spawnCFrame) ~= "CFrame" then
+                        return nil
+                    end
+                    return spawnCFrame * CFrame.new(0, 0, -5)
+                end)
+                if ok then
+                    return result
+                else
+                    warn("EquipLocationError " .. tostring(result))
+                    return nil
+                end
+            end
+
+            local function parseFromFile()
+                local ids = {}
+                local ok, content = pcall(function()
+                    return readfile("BeastHub/custom_4.txt")
+                end)
+                if not ok then
+                    warn("Failed to read custom_4.txt")
+                    return ids
+                end
+                for line in string.gmatch(content, "([^\n]+)") do
+                    local id = string.match(line, "({[%w%-]+})")
+                    if id then
+                        print("id loaded")
+                        print(id or "")
+                        table.insert(ids, id)
+                    end
+                end
+                return ids
+            end
+
+            local function getPlayerData()
+                local dataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                local logs = dataService:GetData()
+                return logs
+            end
+
+            local function equippedPets()
+                local playerData = getPlayerData()
+                if not playerData.PetsData then
+                    warn("PetsData missing")
+                    return nil
+                end
+                local tempStorage = playerData.PetsData.EquippedPets
+                if not tempStorage or type(tempStorage) ~= "table" then
+                    warn("EquippedPets missing or invalid")
+                    return nil
+                end
+                local petIdsList = {}
+                for _, id in ipairs(tempStorage) do
+                    table.insert(petIdsList, id)
+                end
+                return petIdsList
+            end
+
+            local equipped = equippedPets()
+            if #equipped > 0 then
+                for _, id in ipairs(equipped) do
+                    local args = {
+                        [1] = "UnequipPet";
+                        [2] = id;
+                    }
+                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                    task.wait()
+                end
+            end
+
+            local location = getPetEquipLocation()
+            local petIds = parseFromFile()
+
+            if #petIds == 0 then
+                beastHubNotify("Custom 4 is empty", "", 3)
+                return
+            end
+
+            for _, id in ipairs(petIds) do
+                local args = {
+                    [1] = "EquipPet";
+                    [2] = id;
+                    [3] = location;
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents", 9e9):WaitForChild("PetsService", 9e9):FireServer(unpack(args))
+                task.wait()
+            end
+
+            beastHubNotify("Loaded Custom 4", "", 3)
+        end
+    })
+    Custom:CreateDivider()
+
+    Custom:CreateSection("Static loadout switching (NOT FOR AUTO HATCHING)")
+    local switcher1 = Custom:CreateDropdown({
+        Name = "First loadout",
+        Options = {"1", "2", "3", "4", "5", "6", "custom_1","custom_2","custom_3","custom_4"},
+        CurrentOption = {},
+        MultipleOptions = false,
+        Flag = "firstLoadoutAutoSwitch", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+        Callback = function(Options)
+        -- The function that takes place when the selected option is changed
+        -- The variable (Options) is a table of strings for the current selected options
+        end,
+    })
+    local switcher1_delay = Custom:CreateInput({
+        Name = "First loadout duration",
+        CurrentValue = "",
+        PlaceholderText = "seconds",
+        RemoveTextAfterFocusLost = false,
+        Flag = "firstLoadoutAutoSwitchDuration",
+        Callback = function(Text)
+        -- The function that takes place when the input is changed
+        -- The variable (Text) is a string for the value in the text box
+        end,
+    })
+    local switcher2 = Custom:CreateDropdown({
+        Name = "Second loadout",
+        Options = {"1", "2", "3", "4", "5", "6", "custom_1","custom_2","custom_3","custom_4"},
+        CurrentOption = {},
+        MultipleOptions = false,
+        Flag = "secondLoadoutAutoSwitch", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+        Callback = function(Options)
+        -- The function that takes place when the selected option is changed
+        -- The variable (Options) is a table of strings for the current selected options
+        end,
+    })
+    local switcher2_delay = Custom:CreateInput({
+        Name = "Second loadout duration",
+        CurrentValue = "",
+        PlaceholderText = "seconds",
+        RemoveTextAfterFocusLost = false,
+        Flag = "secondLoadoutAutoSwitchDuration",
+        Callback = function(Text)
+        -- The function that takes place when the input is changed
+        -- The variable (Text) is a string for the value in the text box
+        end,
+    })
+
+    local autoSwitchEnabled = false
+    local autoSwitcherThread = nil
+    Custom:CreateToggle({
+        Name = "Auto Loadout Switcher",
+        CurrentValue = false,
+        Flag = "autoLoadoutSwitcher",
+        Callback = function(Value)
+            autoSwitchEnabled = Value
+
+            -- validate dropdowns
+            local loadout1 = switcher1.CurrentOption[1]
+            local loadout2 = switcher2.CurrentOption[1]
+
+            if autoSwitchEnabled then
+                if not loadout1 or loadout1 == "" then
+                    beastHubNotify("Missing first loadout selection", "", "1")
+                    autoSwitchEnabled = false
+                    return
+                end
+
+                if not loadout2 or loadout2 == "" then
+                    beastHubNotify("Missing second loadout selection", "", "1")
+                    autoSwitchEnabled = false
+                    return
+                end
+
+                -- validate durations
+                local delay1 = tonumber(switcher1_delay.CurrentValue)
+                local delay2 = tonumber(switcher2_delay.CurrentValue)
+
+                if not delay1 or delay1 <= 0 then
+                    beastHubNotify("Invalid first loadout duration", "", "1")
+                    autoSwitchEnabled = false
+                    return
+                end
+
+                if not delay2 or delay2 <= 0 then
+                    beastHubNotify("Invalid second loadout duration", "", "1")
+                    autoSwitchEnabled = false
+                    return
+                end
+
+                if autoSwitcherThread then
+                    return
+                end
+
+                autoSwitcherThread = task.spawn(function()
+                    while autoSwitchEnabled do
+                        myFunctions.switchToLoadout(loadout1, getFarmSpawnCFrame, beastHubNotify)
+                        task.wait(delay1)
+
+                        myFunctions.switchToLoadout(loadout2, getFarmSpawnCFrame, beastHubNotify)
+                        task.wait(delay2)
+                    end
+
+                    autoSwitcherThread = nil
+                end)
+            else
+                autoSwitchEnabled = false
+                autoSwitcherThread = nil
+            end
+        end,
+    })
+
+
+    Custom:CreateDivider()
+
+
+
+    -- Automation:CreateButton({
+    --    Name = "Button Example",
+    --    Callback = function()
+    --    -- The function that takes place when the button is pressed
+    --    end,
+    -- })
+
+    -- Automation:CreateButton({
+    --    Name = "Button Example",
+    --    Callback = function()
+    --    -- The function that takes place when the button is pressed
+    --    end,
+    -- })
+    -- Automation:CreateDivider()
+end
+
+
+return M
